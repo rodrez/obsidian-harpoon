@@ -1,0 +1,11 @@
+{
+	"id": "harpoon-plugin",
+	"name": "Harpoon Plugin",
+	"version": "1.0.0",
+	"minAppVersion": "0.15.0",
+	"description": "Allows the use of harpoon in Obsidian.",
+	"author": "devmask",
+	"authorUrl": "github.com/rodrez",
+	"fundingUrl": "",
+	"isDesktopOnly": false
+}
