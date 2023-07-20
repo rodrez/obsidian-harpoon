@@ -1,15 +1,10 @@
 // TODO: Cover the empty dict so it doesnt show undefined
-import { Notice, Plugin, TAbstractFile, TFile } from "obsidian";
+import { Notice, Plugin, TFile } from "obsidian";
+import { Direction, KeyCode } from "./enums";
 
 import HarpoonModal from "./harpoon_modal";
 import HarpoonSettingTab from "./settings";
-
-interface HarpoonSettings {
-	fileOne: TFile | null;
-	fileTwo: TFile | null;
-	fileThree: TFile | null;
-	fileFour: TFile | null;
-}
+import { HarpoonSettings, HookedFile } from "./types";
 
 const DEFAULT_SETTINGS: HarpoonSettings = {
 	fileOne: null,
@@ -18,16 +13,11 @@ const DEFAULT_SETTINGS: HarpoonSettings = {
 	fileFour: null,
 };
 
-export interface HookedFiles {
-	ctime: number;
-	path: string;
-	title: string;
-}
-
 export default class HarpoonPlugin extends Plugin {
 	settings: HarpoonSettings;
-	hookedFiles: HookedFiles[] = [];
+	hookedFiles: HookedFile[] = [];
 	CONFIG_FILE_NAME = "harpoon-config.json";
+	modal: any;
 
 	async onload() {
 		await this.loadSettings();
@@ -53,14 +43,24 @@ export default class HarpoonPlugin extends Plugin {
 			id: "harpoon-open",
 			name: "Harpoon Open File List",
 			callback: () => {
-				new HarpoonModal(this.app, this.hookedFiles).open();
+				this.modal = new HarpoonModal(
+					this.app,
+					this.hookedFiles,
+					(hFiles: HookedFile[]) => this.writeHarpoonCache(hFiles)
+				);
+				this.modal.open();
 			},
 		});
 		this.addCommand({
 			id: "harpoon-close",
 			name: "Harpoon Close File List",
 			callback: () => {
-				new HarpoonModal(this.app, this.hookedFiles).open();
+				this.modal = new HarpoonModal(
+					this.app,
+					this.hookedFiles,
+					(hFiles: HookedFile[]) => this.writeHarpoonCache(hFiles)
+				);
+				this.modal.open();
 			},
 		});
 		this.addCommand({
@@ -71,7 +71,6 @@ export default class HarpoonPlugin extends Plugin {
 
 				if (file) {
 					this.addToHarpoon(file);
-					new Notice(`File ${file.name} added to harpoon`);
 					return;
 				}
 
@@ -111,11 +110,80 @@ export default class HarpoonPlugin extends Plugin {
 		// This adds a settings tab so the user can configure various aspects of the plugin
 		this.addSettingTab(new HarpoonSettingTab(this.app, this));
 
-		// If the plugin hooks up any global DOM events (on parts of the app that doesn't belong to this plugin)
-		// Using this function will automatically remove the event listener when this plugin is disabled.
-		// this.registerDomEvent(document, "keydown", (evt: MouseEvent) => {
-		// 	console.log("click", evt);
-		// });
+		// If the plugin hooks up any global DOM evts (on parts of the app that doesn't belong to this plugin)
+		// Using this function will automatically remove the evt listener when this plugin is disabled.
+		// TODO: Probably a good idea to extract this to another file?
+		this.registerDomEvent(document, "keydown", (evt: KeyboardEvent) => {
+			const { modal } = this;
+			if (modal && modal.isOpen) {
+				if (evt.ctrlKey && evt.shiftKey && evt.code === KeyCode.D) {
+					this.modal.close();
+				}
+				// We will handle a max of 4 files at a time
+				if (evt.ctrlKey) {
+					switch (evt.code) {
+						case KeyCode.H:
+							modal.handleSelection(0);
+							break;
+						case KeyCode.T:
+							modal.handleSelection(1);
+							break;
+						case KeyCode.N:
+							modal.handleSelection(2);
+							break;
+						case KeyCode.S:
+							modal.handleSelection(3);
+							break;
+					}
+				}
+				switch (evt.code) {
+					case KeyCode.Enter:
+						modal.handleSelection(modal.hookedFileIdx);
+						break;
+
+					case KeyCode.D:
+						const currentTime = new Date().getTime();
+						if (currentTime - modal.lastKeyPressTime <= 500) {
+							modal.removeFromHarpoon(modal.hookedFileIdx);
+							break;
+						}
+						modal.lastKeyPressTime = currentTime;
+						break;
+					case KeyCode.P:
+						if (evt.shiftKey) {
+							modal.insertFileAt(modal.hookedFileIdx);
+						} else {
+							modal.insertFileAt(modal.hookedFileIdx + 1);
+						}
+						break;
+					case KeyCode.ArrowDown:
+					case KeyCode.J:
+						if (
+							modal.hookedFileIdx ===
+							this.hookedFiles.length - 1
+						) {
+							modal.resetSelection();
+							modal.highlightHookedFile(modal.hookedFileIdx);
+						} else {
+							modal.moveSelection(Direction.Down);
+							modal.highlightHookedFile(modal.hookedFileIdx);
+						}
+						break;
+					case KeyCode.ArrowUp:
+					case KeyCode.K:
+						if (modal.hookedFileIdx === 0) {
+							modal.resetSelection();
+							modal.highlightHookedFile(modal.hookedFileIdx);
+						} else {
+							modal.moveSelection(Direction.Up);
+							modal.highlightHookedFile(modal.hookedFileIdx);
+						}
+						break;
+					default:
+						break;
+				}
+			}
+		});
 
 		// When registering intervals, this function will automatically clear the interval when the plugin is disabled.
 		this.registerInterval(
@@ -137,14 +205,26 @@ export default class HarpoonPlugin extends Plugin {
 			this.writeHarpoonCache();
 		}
 	}
-	writeHarpoonCache() {
+	writeHarpoonCache(hookedFiles: HookedFile[] | null = null) {
 		this.app.vault.adapter.write(
 			this.CONFIG_FILE_NAME,
 			JSON.stringify(this.hookedFiles)
 		);
+
+		if (hookedFiles) {
+			this.hookedFiles = hookedFiles;
+		}
 	}
 
 	async addToHarpoon(file: TFile) {
+		// Check if the path is already in hookedFiles
+		let inHookedFiles = this.hookedFiles.find((f) => f.path === file.path);
+
+		if (inHookedFiles) {
+			new Notice("File already in Harpoon");
+			return;
+		}
+
 		if (this.hookedFiles.length <= 4) {
 			this.hookedFiles.push({
 				ctime: file.stat.ctime,
@@ -152,10 +232,9 @@ export default class HarpoonPlugin extends Plugin {
 				title: file.name,
 			});
 			this.writeHarpoonCache();
+			new Notice(`File ${file.name} added to harpoon`);
 		}
 	}
-
-	// Open command
 
 	// Helper funcs
 	getActiveFile() {
