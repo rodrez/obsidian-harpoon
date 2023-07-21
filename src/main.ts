@@ -1,5 +1,4 @@
-// TODO: Cover the empty dict so it doesnt show undefined
-import { Notice, Plugin, TFile } from "obsidian";
+import { Plugin, TFile, EditorPosition, MarkdownView } from "obsidian";
 import { Direction, KeyCode } from "./enums";
 
 import HarpoonModal from "./harpoon_modal";
@@ -16,44 +15,23 @@ const DEFAULT_SETTINGS: HarpoonSettings = {
 export default class HarpoonPlugin extends Plugin {
 	settings: HarpoonSettings;
 	hookedFiles: HookedFile[] = [];
-	CONFIG_FILE_NAME = "harpoon-config.json";
-	modal: any;
+	CONFIG_FILE_NAME = ".obsidian/harpoon-config.json";
+	modal: HarpoonModal;
 
 	async onload() {
 		await this.loadSettings();
 		this.loadHarpoonCache();
+		this.registerCommands();
+		this.registerDomEvents();
 
-		// This creates an icon in the left ribbon.
-		const ribbonIconEl = this.addRibbonIcon(
-			"dice",
-			"Harpoon",
-			(evt: MouseEvent) => {
-				// Called when the user clicks the icon.
-			}
-		);
-		// // Perform additional things with the ribbon
-		ribbonIconEl.addClass("my-plugin-ribbon-class");
+		// This adds a settings tab so the user can configure various aspects of the plugin
+		// this.addSettingTab(new HarpoonSettingTab(this.app, this));
+	}
 
-		// This adds a status bar item to the bottom of the app. Does not work on mobile apps.
-		const statusBarItemEl = this.addStatusBarItem();
-		statusBarItemEl.setText("Status Bar Text");
-
-		// This adds a simple command that can be triggered anywhere
+	registerCommands() {
 		this.addCommand({
 			id: "harpoon-open",
-			name: "Harpoon Open File List",
-			callback: () => {
-				this.modal = new HarpoonModal(
-					this.app,
-					this.hookedFiles,
-					(hFiles: HookedFile[]) => this.writeHarpoonCache(hFiles)
-				);
-				this.modal.open();
-			},
-		});
-		this.addCommand({
-			id: "harpoon-close",
-			name: "Harpoon Close File List",
+			name: "Open file list",
 			callback: () => {
 				this.modal = new HarpoonModal(
 					this.app,
@@ -65,7 +43,7 @@ export default class HarpoonPlugin extends Plugin {
 		});
 		this.addCommand({
 			id: "harpoon-add",
-			name: "Harpoon Add",
+			name: "Add file to list",
 			callback: () => {
 				const file = this.getActiveFile();
 
@@ -73,138 +51,126 @@ export default class HarpoonPlugin extends Plugin {
 					this.addToHarpoon(file);
 					return;
 				}
-
-				new Notice(`There was no file to add.`);
+				this.showInStatusBar(`There was no file to add.`);
 			},
 		});
 
-		this.addCommand({
-			id: "harpoon-move-to-1",
-			name: "Harpoon Go To File 1",
-			callback: () => {
-				this.onChooseItem(this.hookedFiles[0].path);
-			},
-		});
-		this.addCommand({
-			id: "harpoon-move-to-2",
-			name: "Harpoon Go To File 2",
-			callback: () => {
-				this.onChooseItem(this.hookedFiles[1].path);
-			},
-		});
-		this.addCommand({
-			id: "harpoon-move-to-3",
-			name: "Harpoon Go To File 3",
-			callback: () => {
-				this.onChooseItem(this.hookedFiles[2].path);
-			},
-		});
-		this.addCommand({
-			id: "harpoon-move-to-4",
-			name: "Harpoon Go To File 4",
-			callback: () => {
-				this.onChooseItem(this.hookedFiles[3].path);
-			},
-		});
+		const goToFiles = [
+			{ id: 1, name: "Go To File 1" },
+			{ id: 2, name: "Go To File 2" },
+			{ id: 3, name: "Go To File 3" },
+			{ id: 4, name: "Go To File 4" },
+		];
 
-		// This adds a settings tab so the user can configure various aspects of the plugin
-		this.addSettingTab(new HarpoonSettingTab(this.app, this));
+		for (const file of goToFiles) {
+			this.addCommand({
+				id: `harpoon-go-to-${file.id}`,
+				name: `${file.name}`,
+				callback: () =>
+					this.onChooseItem(this.hookedFiles[file.id - 1]),
+			});
+		}
+	}
 
-		// If the plugin hooks up any global DOM evts (on parts of the app that doesn't belong to this plugin)
-		// Using this function will automatically remove the evt listener when this plugin is disabled.
-		// TODO: Probably a good idea to extract this to another file?
-		this.registerDomEvent(document, "keydown", (evt: KeyboardEvent) => {
-			const { modal } = this;
-			if (modal && modal.isOpen) {
-				if (evt.ctrlKey && evt.shiftKey && evt.code === KeyCode.D) {
-					this.modal.close();
-				}
-				// We will handle a max of 4 files at a time
-				if (evt.ctrlKey) {
-					switch (evt.code) {
-						case KeyCode.H:
-							modal.handleSelection(0);
-							break;
-						case KeyCode.T:
-							modal.handleSelection(1);
-							break;
-						case KeyCode.N:
-							modal.handleSelection(2);
-							break;
-						case KeyCode.S:
-							modal.handleSelection(3);
-							break;
-					}
-				}
-				switch (evt.code) {
-					case KeyCode.Enter:
-						modal.handleSelection(modal.hookedFileIdx);
-						break;
-
-					case KeyCode.D:
-						const currentTime = new Date().getTime();
-						if (currentTime - modal.lastKeyPressTime <= 500) {
-							modal.removeFromHarpoon(modal.hookedFileIdx);
-							break;
-						}
-						modal.lastKeyPressTime = currentTime;
-						break;
-					case KeyCode.P:
-						if (evt.shiftKey) {
-							modal.insertFileAt(modal.hookedFileIdx);
-						} else {
-							modal.insertFileAt(modal.hookedFileIdx + 1);
-						}
-						break;
-					case KeyCode.ArrowDown:
-					case KeyCode.J:
-						if (
-							modal.hookedFileIdx ===
-							this.hookedFiles.length - 1
-						) {
-							modal.resetSelection();
-							modal.highlightHookedFile(modal.hookedFileIdx);
-						} else {
-							modal.moveSelection(Direction.Down);
-							modal.highlightHookedFile(modal.hookedFileIdx);
-						}
-						break;
-					case KeyCode.ArrowUp:
-					case KeyCode.K:
-						if (modal.hookedFileIdx === 0) {
-							modal.resetSelection();
-							modal.highlightHookedFile(modal.hookedFileIdx);
-						} else {
-							modal.moveSelection(Direction.Up);
-							modal.highlightHookedFile(modal.hookedFileIdx);
-						}
-						break;
-					default:
-						break;
-				}
-			}
-		});
-
-		// When registering intervals, this function will automatically clear the interval when the plugin is disabled.
-		this.registerInterval(
-			window.setInterval(() => console.log("setInterval"), 5 * 60 * 1000)
+	registerDomEvents() {
+		this.registerDomEvent(
+			document,
+			"keydown",
+			this.handleKeyDown.bind(this)
 		);
 	}
 
-	loadHarpoonCache(): void {
-		try {
-			this.app.vault.adapter
-				.read(this.CONFIG_FILE_NAME)
-				.then((content) => {
-					this.hookedFiles = JSON.parse(content);
-				})
-				.catch((error) => {
-					console.error("Failed to read from vault:", error);
-				});
-		} catch {
-			this.writeHarpoonCache();
+	handleKeyDown(evt: KeyboardEvent) {
+		const { modal } = this;
+
+		if (!modal || !modal.isOpen) return;
+
+		if (evt.ctrlKey && evt.shiftKey && evt.code === KeyCode.D) {
+			modal.close();
+		} else if (evt.ctrlKey) {
+			this.handleCtrlKeyCommands(evt);
+		} else {
+			this.handleRegularCommands(evt);
 		}
 	}
+
+	handleCtrlKeyCommands(evt: KeyboardEvent) {
+		const { modal } = this;
+		switch (evt.code) {
+			case KeyCode.H:
+				modal.handleSelection(0);
+				break;
+			case KeyCode.T:
+				modal.handleSelection(1);
+				break;
+			case KeyCode.N:
+				modal.handleSelection(2);
+				break;
+			case KeyCode.S:
+				modal.handleSelection(3);
+				break;
+		}
+	}
+
+	handleRegularCommands(evt: KeyboardEvent) {
+		const { modal } = this;
+		switch (evt.code) {
+			case KeyCode.Enter:
+				modal.handleSelection(modal.hookedFileIdx);
+				break;
+
+			case KeyCode.D:
+				const currentTime = new Date().getTime();
+				if (currentTime - modal.lastKeyPressTime <= 500) {
+					modal.removeFromHarpoon(modal.hookedFileIdx);
+					break;
+				}
+				modal.lastKeyPressTime = currentTime;
+				break;
+			case KeyCode.P:
+				if (evt.shiftKey) {
+					modal.insertFileAt(modal.hookedFileIdx);
+				} else {
+					modal.insertFileAt(modal.hookedFileIdx + 1);
+				}
+				break;
+			case KeyCode.ArrowDown:
+			case KeyCode.J:
+				if (modal.hookedFileIdx === this.hookedFiles.length - 1) {
+					modal.resetSelection();
+					modal.highlightHookedFile(modal.hookedFileIdx);
+				} else {
+					modal.moveSelection(Direction.Down);
+					modal.highlightHookedFile(modal.hookedFileIdx);
+				}
+				break;
+			case KeyCode.ArrowUp:
+			case KeyCode.K:
+				if (modal.hookedFileIdx === 0) {
+					modal.resetSelection();
+					modal.highlightHookedFile(modal.hookedFileIdx);
+				} else {
+					modal.moveSelection(Direction.Up);
+					modal.highlightHookedFile(modal.hookedFileIdx);
+				}
+				break;
+			default:
+				break;
+		}
+	}
+
+	loadHarpoonCache(): void {
+		this.app.vault.adapter
+			.read(this.CONFIG_FILE_NAME)
+			.then((content) => {
+				this.hookedFiles = JSON.parse(content);
+			})
+			.catch(() => {
+				this.writeHarpoonCache();
+			});
+	}
+
+	// Updates the cache file and the hookedFiles
 	writeHarpoonCache(hookedFiles: HookedFile[] | null = null) {
 		this.app.vault.adapter.write(
 			this.CONFIG_FILE_NAME,
@@ -221,7 +187,7 @@ export default class HarpoonPlugin extends Plugin {
 		let inHookedFiles = this.hookedFiles.find((f) => f.path === file.path);
 
 		if (inHookedFiles) {
-			new Notice("File already in Harpoon");
+			this.showInStatusBar("File already in Harpoon");
 			return;
 		}
 
@@ -230,15 +196,60 @@ export default class HarpoonPlugin extends Plugin {
 				ctime: file.stat.ctime,
 				path: file.path,
 				title: file.name,
+				cursor: this.getCursorPos(),
+				selection: this.getSelectionPos(),
 			});
 			this.writeHarpoonCache();
-			new Notice(`File ${file.name} added to harpoon`);
+			this.showInStatusBar(`File ${file.name} added to harpoon`);
 		}
 	}
 
 	// Helper funcs
 	getActiveFile() {
 		return this.app.workspace.getActiveFile();
+	}
+	getCursorPos() {
+		const editor = this.getEditor();
+
+		return editor && editor?.getCursor();
+	}
+	getEditor() {
+		return this.app.workspace.getActiveViewOfType(MarkdownView)?.editor;
+	}
+	getSelectionPos() {
+		let editor = this.getEditor();
+		let selection;
+		if (editor) {
+			let from = editor.getCursor("anchor");
+			let to = editor.getCursor("head");
+			if (from && to) {
+				selection = {
+					from: {
+						ch: from.ch,
+						line: from.line,
+					},
+					to: {
+						ch: to.ch,
+						line: to.line,
+					},
+				};
+			}
+		}
+		return selection;
+	}
+	setSelection(selection: any) {
+		// const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+
+		if (selection) {
+			let editor = this.getEditor();
+			if (editor) {
+				editor.setSelection(selection.from, selection.to);
+			}
+		}
+	}
+	setCursorPos(cursor: EditorPosition) {
+		const editor = this.getEditor();
+		editor?.setCursor(cursor);
 	}
 	pathToFile(filepath: string) {
 		const file = this.app.vault.getAbstractFileByPath(filepath);
@@ -252,9 +263,20 @@ export default class HarpoonPlugin extends Plugin {
 		const hookedFile = this.pathToFile(filepath);
 		return hookedFile as TFile;
 	}
-	onChooseItem(item: string): void {
-		const hookedFile = this.getHookedFile(item);
+	onChooseItem(file: HookedFile): void {
+		const hookedFile = this.getHookedFile(file.path);
 		this.getLeaf().openFile(hookedFile);
+		this.setSelection(file.selection);
+		// this.setCursorPos(file.cursor);
+	}
+
+	// Visual queues
+	showInStatusBar(text: string, time: number = 5000) {
+		const statusBarItemEl = this.addStatusBarItem();
+		statusBarItemEl.setText(text);
+		setTimeout(() => {
+			statusBarItemEl.remove();
+		}, time);
 	}
 
 	onunload() {}
@@ -263,11 +285,5 @@ export default class HarpoonPlugin extends Plugin {
 		this.settings = Object.assign({}, DEFAULT_SETTINGS);
 	}
 
-	async saveSettings() {
-		// if (configFile) {
-		// 	await this.app.vault.modify(JSON.stringify(this.settings));
-		// } else {
-		// 	new Notice("Failed to save settings. Config file not found.");
-		// }
-	}
+	async saveSettings() {}
 }

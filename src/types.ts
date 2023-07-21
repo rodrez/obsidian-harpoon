@@ -1,4 +1,4 @@
-import { TFile } from "obsidian";
+import { EditorPosition, TFile } from "obsidian";
 
 export type HarpoonSettings = {
 	fileOne: TFile | null;
@@ -11,4 +11,6 @@ export type HookedFile = {
 	ctime: number;
 	path: string;
 	title: string;
+	cursor: EditorPosition | undefined;
+	selection: any;
 };
