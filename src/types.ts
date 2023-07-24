@@ -12,5 +12,4 @@ export type HookedFile = {
 	path: string;
 	title: string;
 	cursor: EditorPosition | undefined;
-	selection: any;
 };

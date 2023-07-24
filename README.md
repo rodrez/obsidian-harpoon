@@ -2,9 +2,10 @@
 
 This is a port of Harpoon (github.com/theprimeagen/harpoon) plugin for Obsidian. 
 
-[ ] Remember the position on the previous file (setCursor and setSelection are wonky)
-[ ] Add scroll to pos
-[ ] Ensure keybindings are appropiate
+[x] Ensure keybindings are appropiate
+[ ] Remember the position on the previous file, keep track when file are changed (or user is about to jump to different file)
+[ ] Switch setTimeout for some real programming. ( Currently setCursor using setTimeout due to wait for file to load, 100ms)
+[ ] Add scroll to pos (includes on initial load/refresh)
 [ ] Add keybindings for Harpoon Modal?
 
 ## Releasing new releases

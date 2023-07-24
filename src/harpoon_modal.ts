@@ -1,4 +1,4 @@
-import { App, TFile, Modal } from "obsidian";
+import { App, TFile, Modal, MarkdownView, EditorPosition } from "obsidian";
 import { HookedFile } from "./types";
 
 export default class HarpoonModal extends Modal {
@@ -87,13 +87,22 @@ export default class HarpoonModal extends Modal {
 		return this.pathToFile(filepath) as TFile;
 	}
 
+	getEditor() {
+		return this.app.workspace.getActiveViewOfType(MarkdownView)?.editor;
+	}
+
+	setCursorPos(cursor: EditorPosition) {
+		const editor = this.getEditor();
+		editor?.setCursor(cursor);
+	}
+
 	// Action handlers
 	handleSelection(index: number) {
 		const isNotActive =
 			this.getActiveFile()?.path !== this.hookedFiles[index].path;
-
 		if (isNotActive) {
 			const fileToOpen = this.getHookedFile(this.hookedFiles[index].path);
+			this.setCursorPos(this.hookedFiles[index].cursor as EditorPosition);
 			this.getLeaf().openFile(fileToOpen);
 			this.close();
 			return;

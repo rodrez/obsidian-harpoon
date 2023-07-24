@@ -2,7 +2,6 @@ import { Plugin, TFile, EditorPosition, MarkdownView } from "obsidian";
 import { Direction, KeyCode } from "./enums";
 
 import HarpoonModal from "./harpoon_modal";
-import HarpoonSettingTab from "./settings";
 import { HarpoonSettings, HookedFile } from "./types";
 
 const DEFAULT_SETTINGS: HarpoonSettings = {
@@ -24,8 +23,9 @@ export default class HarpoonPlugin extends Plugin {
 		this.registerCommands();
 		this.registerDomEvents();
 
-		// This adds a settings tab so the user can configure various aspects of the plugin
-		// this.addSettingTab(new HarpoonSettingTab(this.app, this));
+		setTimeout(() => {
+			console.log(this.isHarpooned());
+		}, 200);
 	}
 
 	registerCommands() {
@@ -197,7 +197,6 @@ export default class HarpoonPlugin extends Plugin {
 				path: file.path,
 				title: file.name,
 				cursor: this.getCursorPos(),
-				selection: this.getSelectionPos(),
 			});
 			this.writeHarpoonCache();
 			this.showInStatusBar(`File ${file.name} added to harpoon`);
@@ -210,45 +209,15 @@ export default class HarpoonPlugin extends Plugin {
 	}
 	getCursorPos() {
 		const editor = this.getEditor();
-
 		return editor && editor?.getCursor();
 	}
 	getEditor() {
 		return this.app.workspace.getActiveViewOfType(MarkdownView)?.editor;
 	}
-	getSelectionPos() {
-		let editor = this.getEditor();
-		let selection;
-		if (editor) {
-			let from = editor.getCursor("anchor");
-			let to = editor.getCursor("head");
-			if (from && to) {
-				selection = {
-					from: {
-						ch: from.ch,
-						line: from.line,
-					},
-					to: {
-						ch: to.ch,
-						line: to.line,
-					},
-				};
-			}
-		}
-		return selection;
-	}
-	setSelection(selection: any) {
-		// const view = this.app.workspace.getActiveViewOfType(MarkdownView);
-
-		if (selection) {
-			let editor = this.getEditor();
-			if (editor) {
-				editor.setSelection(selection.from, selection.to);
-			}
-		}
-	}
 	setCursorPos(cursor: EditorPosition) {
+		console.log(cursor);
 		const editor = this.getEditor();
+		console.log(editor);
 		editor?.setCursor(cursor);
 	}
 	pathToFile(filepath: string) {
@@ -266,8 +235,11 @@ export default class HarpoonPlugin extends Plugin {
 	onChooseItem(file: HookedFile): void {
 		const hookedFile = this.getHookedFile(file.path);
 		this.getLeaf().openFile(hookedFile);
-		this.setSelection(file.selection);
-		// this.setCursorPos(file.cursor);
+		// TODO: This is super hacky and shitty. Need to
+		// comeback to it.
+		setTimeout(() => {
+			this.setCursorPos(file.cursor as EditorPosition);
+		}, 100);
 	}
 
 	// Visual queues
@@ -277,6 +249,15 @@ export default class HarpoonPlugin extends Plugin {
 		setTimeout(() => {
 			statusBarItemEl.remove();
 		}, time);
+	}
+
+	// Need to track the cursor positions of the hookedFiles before file change
+	isHarpooned() {
+		const file = this.getActiveFile() as TFile;
+		if (file) {
+			return !!this.hookedFiles.find((f) => f.path === file.path);
+		}
+		return false;
 	}
 
 	onunload() {}
