@@ -22,10 +22,7 @@ export default class HarpoonPlugin extends Plugin {
 		this.loadHarpoonCache();
 		this.registerCommands();
 		this.registerDomEvents();
-
-		setTimeout(() => {
-			console.log(this.isHarpooned());
-		}, 200);
+		this.jumpToCursor();
 	}
 
 	registerCommands() {
@@ -66,8 +63,18 @@ export default class HarpoonPlugin extends Plugin {
 			this.addCommand({
 				id: `harpoon-go-to-${file.id}`,
 				name: `${file.name}`,
-				callback: () =>
-					this.onChooseItem(this.hookedFiles[file.id - 1]),
+				callback: () => {
+					this.onChooseItem(this.hookedFiles[file.id - 1]);
+				},
+
+				// editorCallback(editor, ctx) {
+				// 	if (this.hookedFiles) {
+				// 		const f = this.hookedFiles.find(
+				// 			(f: HookedFile) => f.path === ctx.file?.path
+				// 		);
+				// 		this.jumpToCursor(f.cursor);
+				// 	}
+				// },
 			});
 		}
 	}
@@ -215,9 +222,7 @@ export default class HarpoonPlugin extends Plugin {
 		return this.app.workspace.getActiveViewOfType(MarkdownView)?.editor;
 	}
 	setCursorPos(cursor: EditorPosition) {
-		console.log(cursor);
 		const editor = this.getEditor();
-		console.log(editor);
 		editor?.setCursor(cursor);
 	}
 	pathToFile(filepath: string) {
@@ -235,11 +240,7 @@ export default class HarpoonPlugin extends Plugin {
 	onChooseItem(file: HookedFile): void {
 		const hookedFile = this.getHookedFile(file.path);
 		this.getLeaf().openFile(hookedFile);
-		// TODO: This is super hacky and shitty. Need to
-		// comeback to it.
-		setTimeout(() => {
-			this.setCursorPos(file.cursor as EditorPosition);
-		}, 100);
+		this.jumpToCursor();
 	}
 
 	// Visual queues
@@ -252,12 +253,35 @@ export default class HarpoonPlugin extends Plugin {
 	}
 
 	// Need to track the cursor positions of the hookedFiles before file change
-	isHarpooned() {
-		const file = this.getActiveFile() as TFile;
-		if (file) {
-			return !!this.hookedFiles.find((f) => f.path === file.path);
+	async jumpToCursor() {
+		let activeFile: TFile | null = null;
+		let attempts = 0;
+		const maxAttempts = 10; // Set a reasonable limit to avoid an infinite loop.
+		const delayMs = 200;
+
+		while (!activeFile && attempts < maxAttempts) {
+			activeFile = this.getActiveFile() as TFile;
+			attempts++;
+			if (!activeFile) {
+				// Wait for 200 ms before the next attempt.
+				await new Promise((resolve) => setTimeout(resolve, delayMs));
+			}
 		}
-		return false;
+
+		if (!activeFile) {
+			console.log("Failed to get the active file.");
+			return;
+		}
+
+		const file = this.hookedFiles.find((f) => f.path === activeFile?.path);
+
+		if (!file) {
+			console.log("Active file is not found in the hooked files.");
+			return;
+		}
+
+		this.setCursorPos(file.cursor as EditorPosition);
+		console.log("Cursor set");
 	}
 
 	onunload() {}

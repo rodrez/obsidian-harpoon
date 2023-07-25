@@ -91,23 +91,50 @@ export default class HarpoonModal extends Modal {
 		return this.app.workspace.getActiveViewOfType(MarkdownView)?.editor;
 	}
 
-	setCursorPos(cursor: EditorPosition) {
-		const editor = this.getEditor();
-		editor?.setCursor(cursor);
-	}
-
 	// Action handlers
 	handleSelection(index: number) {
 		const isNotActive =
 			this.getActiveFile()?.path !== this.hookedFiles[index].path;
 		if (isNotActive) {
 			const fileToOpen = this.getHookedFile(this.hookedFiles[index].path);
-			this.setCursorPos(this.hookedFiles[index].cursor as EditorPosition);
 			this.getLeaf().openFile(fileToOpen);
+
+			// Wait until isLoaded becomes true
 			this.close();
 			return;
 		}
 		this.close();
+	}
+	// Need to track the cursor positions of the hookedFiles before file change
+	async jumpToCursor() {
+		let activeFile: TFile | null = null;
+		let attempts = 0;
+		const maxAttempts = 10; // Set a reasonable limit to avoid an infinite loop.
+		const delayMs = 200;
+
+		while (!activeFile && attempts < maxAttempts) {
+			activeFile = this.getActiveFile() as TFile;
+			attempts++;
+			if (!activeFile) {
+				// Wait for 200 ms before the next attempt.
+				await new Promise((resolve) => setTimeout(resolve, delayMs));
+			}
+		}
+
+		if (!activeFile) {
+			console.log("Failed to get the active file.");
+			return;
+		}
+
+		const file = this.hookedFiles.find((f) => f.path === activeFile?.path);
+
+		if (!file) {
+			console.log("Active file is not found in the hooked files.");
+			return;
+		}
+
+		this.setCursorPos(file.cursor as EditorPosition);
+		console.log("Cursor has been set.");
 	}
 
 	removeFromHarpoon(idx: number) {
