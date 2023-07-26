@@ -1,4 +1,4 @@
-import { Plugin, TFile, EditorPosition, MarkdownView } from "obsidian";
+import { Plugin, TFile, Editor, EditorPosition, MarkdownView } from "obsidian";
 import { Direction, KeyCode } from "./enums";
 
 import HarpoonModal from "./harpoon_modal";
@@ -65,16 +65,10 @@ export default class HarpoonPlugin extends Plugin {
 				name: `${file.name}`,
 				callback: () => {
 					this.onChooseItem(this.hookedFiles[file.id - 1]);
+					setTimeout(() => {
+						this.jumpToCursor();
+					}, 100);
 				},
-
-				// editorCallback(editor, ctx) {
-				// 	if (this.hookedFiles) {
-				// 		const f = this.hookedFiles.find(
-				// 			(f: HookedFile) => f.path === ctx.file?.path
-				// 		);
-				// 		this.jumpToCursor(f.cursor);
-				// 	}
-				// },
 			});
 		}
 	}
@@ -189,15 +183,15 @@ export default class HarpoonPlugin extends Plugin {
 		}
 	}
 
+	async updateFile(file: TFile) {
+		return this.hookedFiles.map((f) => {
+			if (f.path === file.path) {
+				f.cursor = this.getCursorPos();
+			}
+		});
+	}
+
 	async addToHarpoon(file: TFile) {
-		// Check if the path is already in hookedFiles
-		let inHookedFiles = this.hookedFiles.find((f) => f.path === file.path);
-
-		if (inHookedFiles) {
-			this.showInStatusBar("File already in Harpoon");
-			return;
-		}
-
 		if (this.hookedFiles.length <= 4) {
 			this.hookedFiles.push({
 				ctime: file.stat.ctime,
@@ -240,6 +234,7 @@ export default class HarpoonPlugin extends Plugin {
 	onChooseItem(file: HookedFile): void {
 		const hookedFile = this.getHookedFile(file.path);
 		this.getLeaf().openFile(hookedFile);
+		this.updateFile(this.getActiveFile() as TFile);
 		this.jumpToCursor();
 	}
 
@@ -281,7 +276,6 @@ export default class HarpoonPlugin extends Plugin {
 		}
 
 		this.setCursorPos(file.cursor as EditorPosition);
-		console.log("Cursor set");
 	}
 
 	onunload() {}

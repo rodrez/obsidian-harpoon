@@ -98,13 +98,19 @@ export default class HarpoonModal extends Modal {
 		if (isNotActive) {
 			const fileToOpen = this.getHookedFile(this.hookedFiles[index].path);
 			this.getLeaf().openFile(fileToOpen);
-
+			this.jumpToCursor();
 			// Wait until isLoaded becomes true
 			this.close();
 			return;
 		}
 		this.close();
 	}
+
+	setCursor(cursor: EditorPosition) {
+		const editor = this.getEditor();
+		editor?.setCursor(cursor);
+	}
+
 	// Need to track the cursor positions of the hookedFiles before file change
 	async jumpToCursor() {
 		let activeFile: TFile | null = null;
@@ -132,8 +138,7 @@ export default class HarpoonModal extends Modal {
 			console.log("Active file is not found in the hooked files.");
 			return;
 		}
-
-		this.setCursorPos(file.cursor as EditorPosition);
+		this.setCursor(file.cursor as EditorPosition);
 		console.log("Cursor has been set.");
 	}
 
