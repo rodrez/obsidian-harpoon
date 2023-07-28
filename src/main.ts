@@ -1,8 +1,17 @@
-import { Plugin, TFile, Editor, EditorPosition, MarkdownView } from "obsidian";
+import {
+	Plugin,
+	TFile,
+	Editor,
+	EditorPosition,
+	MarkdownView,
+	App,
+	PluginManifest,
+} from "obsidian";
 import { Direction, KeyCode } from "./enums";
 
 import HarpoonModal from "./harpoon_modal";
 import { HarpoonSettings, HookedFile } from "./types";
+import { HarpoonUtils } from "./utils";
 
 const DEFAULT_SETTINGS: HarpoonSettings = {
 	fileOne: null,
@@ -11,18 +20,33 @@ const DEFAULT_SETTINGS: HarpoonSettings = {
 	fileFour: null,
 };
 
+const MAX_ATTEMPTS = 10;
+const DELAY_MS = 200;
+
 export default class HarpoonPlugin extends Plugin {
 	settings: HarpoonSettings;
 	hookedFiles: HookedFile[] = [];
-	CONFIG_FILE_NAME = ".obsidian/harpoon-config.json";
+	CONFIG_FILE_NAME = "harpoon-config.json";
 	modal: HarpoonModal;
+	utils: HarpoonUtils;
 
-	async onload() {
-		await this.loadSettings();
+	constructor(app: App, manifest: PluginManifest) {
+		super(app, manifest);
+		this.utils = new HarpoonUtils(app);
+		console.log("constructor");
+	}
+
+	onload() {
+		console.log("onload");
+		this.loadSettings();
 		this.loadHarpoonCache();
 		this.registerCommands();
 		this.registerDomEvents();
-		this.jumpToCursor();
+		this.utils.jumpToCursor();
+	}
+
+	loadSettings() {
+		this.settings = Object.assign({}, DEFAULT_SETTINGS);
 	}
 
 	registerCommands() {
@@ -247,19 +271,16 @@ export default class HarpoonPlugin extends Plugin {
 		}, time);
 	}
 
-	// Need to track the cursor positions of the hookedFiles before file change
+	// Cursor handling
 	async jumpToCursor() {
 		let activeFile: TFile | null = null;
 		let attempts = 0;
-		const maxAttempts = 10; // Set a reasonable limit to avoid an infinite loop.
-		const delayMs = 200;
 
-		while (!activeFile && attempts < maxAttempts) {
+		while (!activeFile && attempts < MAX_ATTEMPTS) {
 			activeFile = this.getActiveFile() as TFile;
 			attempts++;
 			if (!activeFile) {
-				// Wait for 200 ms before the next attempt.
-				await new Promise((resolve) => setTimeout(resolve, delayMs));
+				await this.wait(DELAY_MS);
 			}
 		}
 
@@ -278,11 +299,7 @@ export default class HarpoonPlugin extends Plugin {
 		this.setCursorPos(file.cursor as EditorPosition);
 	}
 
-	onunload() {}
-
-	async loadSettings() {
-		this.settings = Object.assign({}, DEFAULT_SETTINGS);
+	async wait(ms: number) {
+		return new Promise((resolve) => setTimeout(resolve, ms));
 	}
-
-	async saveSettings() {}
 }
