@@ -1,5 +1,6 @@
 import { App, TFile, Modal, MarkdownView, EditorPosition } from "obsidian";
 import { HookedFile } from "./types";
+import { HarpoonUtils } from "./utils";
 
 export default class HarpoonModal extends Modal {
 	hookedFiles: HookedFile[];
@@ -8,6 +9,7 @@ export default class HarpoonModal extends Modal {
 	lastRemoved: HookedFile | null;
 	isOpen: boolean = false;
 	lastKeyPressTime: number = 0;
+	utils: HarpoonUtils;
 
 	constructor(
 		app: App,
@@ -17,6 +19,7 @@ export default class HarpoonModal extends Modal {
 		super(app);
 		this.hookedFiles = hookedFiles;
 		this.writeToCache = writeToCache;
+		this.utils = new HarpoonUtils(app);
 	}
 
 	// Lifecycle methods

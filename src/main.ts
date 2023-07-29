@@ -1,12 +1,4 @@
-import {
-	Plugin,
-	TFile,
-	Editor,
-	EditorPosition,
-	MarkdownView,
-	App,
-	PluginManifest,
-} from "obsidian";
+import { Plugin, TFile, App, PluginManifest } from "obsidian";
 import { Direction, KeyCode } from "./enums";
 
 import HarpoonModal from "./harpoon_modal";
@@ -20,29 +12,28 @@ const DEFAULT_SETTINGS: HarpoonSettings = {
 	fileFour: null,
 };
 
-const MAX_ATTEMPTS = 10;
-const DELAY_MS = 200;
-
 export default class HarpoonPlugin extends Plugin {
 	settings: HarpoonSettings;
-	hookedFiles: HookedFile[] = [];
 	CONFIG_FILE_NAME = "harpoon-config.json";
 	modal: HarpoonModal;
 	utils: HarpoonUtils;
+	isLoaded: boolean = false;
 
 	constructor(app: App, manifest: PluginManifest) {
 		super(app, manifest);
 		this.utils = new HarpoonUtils(app);
-		console.log("constructor");
 	}
 
 	onload() {
-		console.log("onload");
 		this.loadSettings();
 		this.loadHarpoonCache();
 		this.registerCommands();
 		this.registerDomEvents();
-		this.utils.jumpToCursor();
+		this.isLoaded = true;
+
+		if (this.isLoaded) {
+			this.utils.jumpToCursor;
+		}
 	}
 
 	loadSettings() {
@@ -56,7 +47,7 @@ export default class HarpoonPlugin extends Plugin {
 			callback: () => {
 				this.modal = new HarpoonModal(
 					this.app,
-					this.hookedFiles,
+					this.utils.hookedFiles,
 					(hFiles: HookedFile[]) => this.writeHarpoonCache(hFiles)
 				);
 				this.modal.open();
@@ -66,7 +57,7 @@ export default class HarpoonPlugin extends Plugin {
 			id: "harpoon-add",
 			name: "Add file to list",
 			callback: () => {
-				const file = this.getActiveFile();
+				const file = this.utils.getActiveFile();
 
 				if (file) {
 					this.addToHarpoon(file);
@@ -88,9 +79,11 @@ export default class HarpoonPlugin extends Plugin {
 				id: `harpoon-go-to-${file.id}`,
 				name: `${file.name}`,
 				callback: () => {
-					this.onChooseItem(this.hookedFiles[file.id - 1]);
+					this.utils.onChooseItem(
+						this.utils.hookedFiles[file.id - 1]
+					);
 					setTimeout(() => {
-						this.jumpToCursor();
+						this.utils.jumpToCursor();
 					}, 100);
 				},
 			});
@@ -161,7 +154,7 @@ export default class HarpoonPlugin extends Plugin {
 				break;
 			case KeyCode.ArrowDown:
 			case KeyCode.J:
-				if (modal.hookedFileIdx === this.hookedFiles.length - 1) {
+				if (modal.hookedFileIdx === this.utils.hookedFiles.length - 1) {
 					modal.resetSelection();
 					modal.highlightHookedFile(modal.hookedFileIdx);
 				} else {
@@ -188,7 +181,7 @@ export default class HarpoonPlugin extends Plugin {
 		this.app.vault.adapter
 			.read(this.CONFIG_FILE_NAME)
 			.then((content) => {
-				this.hookedFiles = JSON.parse(content);
+				this.utils.hookedFiles = JSON.parse(content);
 			})
 			.catch(() => {
 				this.writeHarpoonCache();
@@ -199,67 +192,25 @@ export default class HarpoonPlugin extends Plugin {
 	writeHarpoonCache(hookedFiles: HookedFile[] | null = null) {
 		this.app.vault.adapter.write(
 			this.CONFIG_FILE_NAME,
-			JSON.stringify(this.hookedFiles)
+			JSON.stringify(this.utils.hookedFiles)
 		);
 
 		if (hookedFiles) {
-			this.hookedFiles = hookedFiles;
+			this.utils.hookedFiles = hookedFiles;
 		}
 	}
 
-	async updateFile(file: TFile) {
-		return this.hookedFiles.map((f) => {
-			if (f.path === file.path) {
-				f.cursor = this.getCursorPos();
-			}
-		});
-	}
-
 	async addToHarpoon(file: TFile) {
-		if (this.hookedFiles.length <= 4) {
-			this.hookedFiles.push({
+		if (this.utils.hookedFiles.length <= 4) {
+			this.utils.hookedFiles.push({
 				ctime: file.stat.ctime,
 				path: file.path,
 				title: file.name,
-				cursor: this.getCursorPos(),
+				cursor: this.utils.getCursorPos(),
 			});
 			this.writeHarpoonCache();
 			this.showInStatusBar(`File ${file.name} added to harpoon`);
 		}
-	}
-
-	// Helper funcs
-	getActiveFile() {
-		return this.app.workspace.getActiveFile();
-	}
-	getCursorPos() {
-		const editor = this.getEditor();
-		return editor && editor?.getCursor();
-	}
-	getEditor() {
-		return this.app.workspace.getActiveViewOfType(MarkdownView)?.editor;
-	}
-	setCursorPos(cursor: EditorPosition) {
-		const editor = this.getEditor();
-		editor?.setCursor(cursor);
-	}
-	pathToFile(filepath: string) {
-		const file = this.app.vault.getAbstractFileByPath(filepath);
-		if (file instanceof TFile) return file;
-		return null;
-	}
-	getLeaf() {
-		return this.app.workspace.getLeaf();
-	}
-	getHookedFile(filepath: string) {
-		const hookedFile = this.pathToFile(filepath);
-		return hookedFile as TFile;
-	}
-	onChooseItem(file: HookedFile): void {
-		const hookedFile = this.getHookedFile(file.path);
-		this.getLeaf().openFile(hookedFile);
-		this.updateFile(this.getActiveFile() as TFile);
-		this.jumpToCursor();
 	}
 
 	// Visual queues
@@ -269,37 +220,5 @@ export default class HarpoonPlugin extends Plugin {
 		setTimeout(() => {
 			statusBarItemEl.remove();
 		}, time);
-	}
-
-	// Cursor handling
-	async jumpToCursor() {
-		let activeFile: TFile | null = null;
-		let attempts = 0;
-
-		while (!activeFile && attempts < MAX_ATTEMPTS) {
-			activeFile = this.getActiveFile() as TFile;
-			attempts++;
-			if (!activeFile) {
-				await this.wait(DELAY_MS);
-			}
-		}
-
-		if (!activeFile) {
-			console.log("Failed to get the active file.");
-			return;
-		}
-
-		const file = this.hookedFiles.find((f) => f.path === activeFile?.path);
-
-		if (!file) {
-			console.log("Active file is not found in the hooked files.");
-			return;
-		}
-
-		this.setCursorPos(file.cursor as EditorPosition);
-	}
-
-	async wait(ms: number) {
-		return new Promise((resolve) => setTimeout(resolve, ms));
 	}
 }

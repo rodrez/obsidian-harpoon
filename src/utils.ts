@@ -32,15 +32,14 @@ export class HarpoonUtils {
 		const hookedFile = this.pathToFile(filepath);
 		return hookedFile as TFile;
 	}
-	setCursorPos(cursor: EditorPosition) {
-		const editor = this.getEditor();
-		editor?.setCursor(cursor);
-	}
 	getCursorPos() {
 		const editor = this.getEditor();
 		return editor && editor?.getCursor();
 	}
-
+	setCursorPos(cursor: EditorPosition) {
+		const editor = this.getEditor();
+		editor?.setCursor(cursor);
+	}
 	onChooseItem(file: HookedFile): void {
 		const hookedFile = this.getHookedFile(file.path);
 		this.getLeaf().openFile(hookedFile);
