@@ -50,5 +50,5 @@ While the Harpoon modal is open:
 
 ## Todos
 
-[ ] Add scroll to pos (includes on initial load/refresh)
-[ ] Add adjustable keybindings for Harpoon Modal? (maybe)
+- [ ] Add scroll to pos (includes on initial load/refresh)
+- [ ] Add adjustable keybindings for Harpoon Modal? (maybe)
