@@ -1,31 +1,54 @@
 # Obsidian Harpoon Plugin
 
-This is a port of Harpoon (github.com/theprimeagen/harpoon) plugin for Obsidian. 
+An Obsidian plugin to manage and quickly navigate to your favorite files.
+This is a port of Harpoon (github.com/theprimeagen/harpoon) plugin for Obsidian.
 
-[ ] Switch setTimeout for some real programming. ( Currently setCursor using setTimeout due to wait for file to load, 100ms)
+![Example Usage](./sample.gif)
+
+### Installation
+
+Note: This assumes that you're already familiar with installing Obsidian plugins.
+
+* Download the Harpoon Plugin
+* Install it in your Obsidian vault as you would with any other plugin.
+
+### Inital Setup
+
+I recommend for you to use your favorite keybindings to add/navigate files.
+After installation, the plugin will create a default configuration file named harpoon-config.json in your vault.
+
+### Usage
+
+* Open File List: This command opens a modal that lists the files you've hooked with Harpoon.
+* Add File to List: Add the currently active file to the Harpoon list. Note: There's a limit of 4 files that can be added.
+* Go To File: You can use one of the Go To File x commands (where x is a number from 1 to 4) to quickly jump to one of your hooked files.
+
+### Keyboard Shortcuts
+
+
+> Ctrl + Shift + D: Opens the modal.
+
+While the Harpoon modal is open:
+
+**Ctrl + Shift + D**: Close the modal.
+
+**Enter**: Choose the file corresponding to the currently highlighted index.
+
+**dd**: Quickly press twice to remove a file from the list.
+
+**p**: Insert the last removed file just after the currently highlighted file.
+
+**Shift + p**: Insert the last removed file just before the currently highlighted file
+
+**ArrowDown or J**: Navigate downwards in the list.
+**ArrowUp or K**: Navigate upwards in the list.
+
+### Tips
+
+* Make sure not to manually delete the harpoon-config.json unless you're sure about it. It holds the configuration and list of hooked files for the plugin.
+* The plugin is designed for quick navigation, so make use of keyboard shortcuts for efficient usage.
+
+## Todos
+
 [ ] Add scroll to pos (includes on initial load/refresh)
-[ ] Add keybindings for Harpoon Modal?
-
-
-## Releasing new releases
-
-- Update your `manifest.json` with your new version number, such as `1.0.1`, and the minimum Obsidian version required for your latest release.
-- Update your `versions.json` file with `"new-plugin-version": "minimum-obsidian-version"` so older versions of Obsidian can download an older version of your plugin that's compatible.
-- Create new GitHub release using your new version number as the "Tag version". Use the exact version number, don't include a prefix `v`. See here for an example: https://github.com/obsidianmd/obsidian-sample-plugin/releases
-- Upload the files `manifest.json`, `main.js`, `styles.css` as binary attachments. Note: The manifest.json file must be in two places, first the root path of your repository and also in the release.
-- Publish the release.
-
-> You can simplify the version bump process by running `npm version patch`, `npm version minor` or `npm version major` after updating `minAppVersion` manually in `manifest.json`.
-> The command will bump version in `manifest.json` and `package.json`, and add the entry for the new version to `versions.json`
-
-
-## How to use
-
-- Clone this repo.
-- `npm i` or `yarn` to install dependencies
-- `npm run dev` to start compilation in watch mode.
-
-## Manually installing the plugin
-
-- Copy over `main.js`, `styles.css`, `manifest.json` to your vault `VaultFolder/.obsidian/plugins/your-plugin-id/`.
-
+[ ] Add adjustable keybindings for Harpoon Modal? (maybe)

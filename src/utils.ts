@@ -3,8 +3,8 @@ import { MAX_ATTEMPTS, DELAY_MS } from "./constants";
 import { HookedFile } from "./types";
 
 export class HarpoonUtils {
-	isOpen: boolean = false;
-	hookedFiles: HookedFile[];
+	isOpen = false;
+	hookedFiles: HookedFile[] = [];
 	private app: App;
 
 	constructor(app: App) {

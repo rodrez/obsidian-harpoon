@@ -1,36 +1,35 @@
-import { App, TFile, Modal, MarkdownView, EditorPosition } from "obsidian";
+import { App, Modal } from "obsidian";
 import { HookedFile } from "./types";
 import { HarpoonUtils } from "./utils";
 
 export default class HarpoonModal extends Modal {
 	hookedFiles: HookedFile[];
-	hookedFileIdx: number = 0;
+	hookedFileIdx = 0;
 	writeToCache: (hFiles: HookedFile[]) => void;
 	lastRemoved: HookedFile | null;
-	isOpen: boolean = false;
-	lastKeyPressTime: number = 0;
+	lastKeyPressTime = 0;
 	utils: HarpoonUtils;
 
 	constructor(
 		app: App,
-		hookedFiles: HookedFile[],
-		writeToCache: (hFiles: HookedFile[]) => void
+		writeToCache: (hFiles: HookedFile[]) => void,
+		utils: HarpoonUtils
 	) {
 		super(app);
-		this.hookedFiles = hookedFiles;
+		this.hookedFiles = utils.hookedFiles;
 		this.writeToCache = writeToCache;
-		this.utils = new HarpoonUtils(app);
+		this.utils = utils;
 	}
 
 	// Lifecycle methods
 	onOpen() {
-		this.isOpen = true;
+		this.utils.isOpen = true;
 		this.setupUI();
 		this.renderHookedFiles();
 	}
 
 	onClose() {
-		this.isOpen = false;
+		this.utils.isOpen = false;
 		this.contentEl.empty();
 	}
 
@@ -72,77 +71,21 @@ export default class HarpoonModal extends Modal {
 		hookedEl?.classList.add("is-active");
 	}
 
-	// Utility methods
-	getLeaf() {
-		return this.app.workspace.getLeaf();
-	}
-
-	getActiveFile() {
-		return this.app.workspace.getActiveFile();
-	}
-
-	pathToFile(filepath: string): TFile | null {
-		const file = this.app.vault.getAbstractFileByPath(filepath);
-		return file instanceof TFile ? file : null;
-	}
-
-	getHookedFile(filepath: string): TFile {
-		return this.pathToFile(filepath) as TFile;
-	}
-
-	getEditor() {
-		return this.app.workspace.getActiveViewOfType(MarkdownView)?.editor;
-	}
-
 	// Action handlers
 	handleSelection(index: number) {
 		const isNotActive =
-			this.getActiveFile()?.path !== this.hookedFiles[index].path;
+			this.utils.getActiveFile()?.path !== this.hookedFiles[index].path;
 		if (isNotActive) {
-			const fileToOpen = this.getHookedFile(this.hookedFiles[index].path);
-			this.getLeaf().openFile(fileToOpen);
-			this.jumpToCursor();
+			const fileToOpen = this.utils.getHookedFile(
+				this.hookedFiles[index].path
+			);
+			this.utils.getLeaf().openFile(fileToOpen);
+			this.utils.jumpToCursor();
 			// Wait until isLoaded becomes true
 			this.close();
 			return;
 		}
 		this.close();
-	}
-
-	setCursor(cursor: EditorPosition) {
-		const editor = this.getEditor();
-		editor?.setCursor(cursor);
-	}
-
-	// Need to track the cursor positions of the hookedFiles before file change
-	async jumpToCursor() {
-		let activeFile: TFile | null = null;
-		let attempts = 0;
-		const maxAttempts = 10; // Set a reasonable limit to avoid an infinite loop.
-		const delayMs = 200;
-
-		while (!activeFile && attempts < maxAttempts) {
-			activeFile = this.getActiveFile() as TFile;
-			attempts++;
-			if (!activeFile) {
-				// Wait for 200 ms before the next attempt.
-				await new Promise((resolve) => setTimeout(resolve, delayMs));
-			}
-		}
-
-		if (!activeFile) {
-			console.log("Failed to get the active file.");
-			return;
-		}
-
-		const file = this.hookedFiles.find((f) => f.path === activeFile?.path);
-
-		if (!file) {
-			console.log("Active file is not found in the hooked files.");
-			return;
-		}
-		this.setCursor(file.cursor as EditorPosition);
-		console.log("Cursor has been set.");
 	}
 
 	removeFromHarpoon(idx: number) {

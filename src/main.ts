@@ -17,7 +17,7 @@ export default class HarpoonPlugin extends Plugin {
 	CONFIG_FILE_NAME = "harpoon-config.json";
 	modal: HarpoonModal;
 	utils: HarpoonUtils;
-	isLoaded: boolean = false;
+	isLoaded = false;
 
 	constructor(app: App, manifest: PluginManifest) {
 		super(app, manifest);
@@ -47,8 +47,8 @@ export default class HarpoonPlugin extends Plugin {
 			callback: () => {
 				this.modal = new HarpoonModal(
 					this.app,
-					this.utils.hookedFiles,
-					(hFiles: HookedFile[]) => this.writeHarpoonCache(hFiles)
+					(hFiles: HookedFile[]) => this.writeHarpoonCache(hFiles),
+					this.utils
 				);
 				this.modal.open();
 			},
@@ -101,7 +101,7 @@ export default class HarpoonPlugin extends Plugin {
 	handleKeyDown(evt: KeyboardEvent) {
 		const { modal } = this;
 
-		if (!modal || !modal.isOpen) return;
+		if (!modal || !this.utils.isOpen) return;
 
 		if (evt.ctrlKey && evt.shiftKey && evt.code === KeyCode.D) {
 			modal.close();
@@ -138,6 +138,7 @@ export default class HarpoonPlugin extends Plugin {
 				break;
 
 			case KeyCode.D:
+				// eslint-disable-next-line no-case-declarations
 				const currentTime = new Date().getTime();
 				if (currentTime - modal.lastKeyPressTime <= 500) {
 					modal.removeFromHarpoon(modal.hookedFileIdx);
@@ -214,7 +215,7 @@ export default class HarpoonPlugin extends Plugin {
 	}
 
 	// Visual queues
-	showInStatusBar(text: string, time: number = 5000) {
+	showInStatusBar(text: string, time = 5000) {
 		const statusBarItemEl = this.addStatusBarItem();
 		statusBarItemEl.setText(text);
 		setTimeout(() => {
