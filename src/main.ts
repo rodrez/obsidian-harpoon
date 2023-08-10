@@ -29,11 +29,8 @@ export default class HarpoonPlugin extends Plugin {
 		this.loadHarpoonCache();
 		this.registerCommands();
 		this.registerDomEvents();
-		this.isLoaded = true;
 
-		if (this.isLoaded) {
-			this.utils.jumpToCursor;
-		}
+		this.utils.editorIsLoaded();
 	}
 
 	loadSettings() {
@@ -48,7 +45,7 @@ export default class HarpoonPlugin extends Plugin {
 				this.modal = new HarpoonModal(
 					this.app,
 					(hFiles: HookedFile[]) => this.writeHarpoonCache(hFiles),
-					this.utils
+					this.utils,
 				);
 				this.modal.open();
 			},
@@ -80,9 +77,14 @@ export default class HarpoonPlugin extends Plugin {
 				name: `${file.name}`,
 				callback: () => {
 					this.utils.onChooseItem(
-						this.utils.hookedFiles[file.id - 1]
+						this.utils.hookedFiles[file.id - 1],
 					);
-					this.utils.jumpToCursor();
+					// For some odd reason, possibly my lack knowledge, the
+					// editor maybe loaded when the callback is called?. So I
+					// have to wait a bit before jumping to the cursor.
+					setTimeout(() => {
+						this.utils.jumpToCursor();
+					}, 100);
 				},
 			});
 		}
@@ -92,7 +94,7 @@ export default class HarpoonPlugin extends Plugin {
 		this.registerDomEvent(
 			document,
 			"keydown",
-			this.handleKeyDown.bind(this)
+			this.handleKeyDown.bind(this),
 		);
 	}
 
@@ -193,7 +195,7 @@ export default class HarpoonPlugin extends Plugin {
 	writeHarpoonCache(hookedFiles: HookedFile[] | null = null) {
 		this.app.vault.adapter.write(
 			CACHE_FILE,
-			JSON.stringify(this.utils.hookedFiles, null, 2)
+			JSON.stringify(this.utils.hookedFiles, null, 2),
 		);
 
 		if (hookedFiles) {

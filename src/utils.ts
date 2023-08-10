@@ -1,4 +1,5 @@
 import { App, EditorPosition, MarkdownView, TFile } from "obsidian";
+import { runInThisContext } from "vm";
 import { MAX_ATTEMPTS, DELAY_MS } from "./constants";
 import { HookedFile } from "./types";
 
@@ -21,6 +22,17 @@ export class HarpoonUtils {
 
 	getLeaf() {
 		return this.app.workspace.getLeaf();
+	}
+	// Checks until the editor is loaded and active then jumps to the cursor
+	editorIsLoaded(cb?: () => void | Promise<void>) {
+		if (this.app.workspace?.activeEditor) {
+			cb && cb();
+			this.jumpToCursor();
+			return true;
+		} else {
+			setTimeout(() => this.editorIsLoaded(), 100);
+			return false;
+		}
 	}
 	getActiveFile() {
 		return this.app.workspace.getActiveFile();
@@ -53,16 +65,16 @@ export class HarpoonUtils {
 	}
 
 	// Cursor handling
-	jumpToCursor() {
+	async jumpToCursor() {
 		let activeFile: TFile | null = null;
 		let attempts = 0;
 
 		while (!activeFile && attempts < MAX_ATTEMPTS) {
 			activeFile = this.getActiveFile() as TFile;
 			attempts++;
-			if (!activeFile) {
-				this.wait(DELAY_MS);
-			}
+			// if (!activeFile) {
+			// this.wait(DELAY_MS);
+			// }
 		}
 
 		if (!activeFile) {
@@ -71,7 +83,7 @@ export class HarpoonUtils {
 		}
 
 		const file = this.hookedFiles.find(
-			(f: HookedFile) => f.path === activeFile?.path
+			(f: HookedFile) => f.path === activeFile?.path,
 		);
 
 		if (!file) {
