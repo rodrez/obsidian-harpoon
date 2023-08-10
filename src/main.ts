@@ -1,9 +1,10 @@
 import { Plugin, TFile, App, PluginManifest } from "obsidian";
 import { Direction, KeyCode } from "./enums";
-
-import HarpoonModal from "./harpoon_modal";
 import { HarpoonSettings, HookedFile } from "./types";
 import { HarpoonUtils } from "./utils";
+import { CACHE_FILE } from "./constants";
+
+import HarpoonModal from "./harpoon_modal";
 
 const DEFAULT_SETTINGS: HarpoonSettings = {
 	fileOne: null,
@@ -14,7 +15,6 @@ const DEFAULT_SETTINGS: HarpoonSettings = {
 
 export default class HarpoonPlugin extends Plugin {
 	settings: HarpoonSettings;
-	CONFIG_FILE_NAME = "harpoon-config.json";
 	modal: HarpoonModal;
 	utils: HarpoonUtils;
 	isLoaded = false;
@@ -42,7 +42,7 @@ export default class HarpoonPlugin extends Plugin {
 
 	registerCommands() {
 		this.addCommand({
-			id: "harpoon-open",
+			id: "open",
 			name: "Open file list",
 			callback: () => {
 				this.modal = new HarpoonModal(
@@ -54,7 +54,7 @@ export default class HarpoonPlugin extends Plugin {
 			},
 		});
 		this.addCommand({
-			id: "harpoon-add",
+			id: "add",
 			name: "Add file to list",
 			callback: () => {
 				const file = this.utils.getActiveFile();
@@ -76,15 +76,13 @@ export default class HarpoonPlugin extends Plugin {
 
 		for (const file of goToFiles) {
 			this.addCommand({
-				id: `harpoon-go-to-${file.id}`,
+				id: `go-to-${file.id}`,
 				name: `${file.name}`,
 				callback: () => {
 					this.utils.onChooseItem(
 						this.utils.hookedFiles[file.id - 1]
 					);
-					setTimeout(() => {
-						this.utils.jumpToCursor();
-					}, 100);
+					this.utils.jumpToCursor();
 				},
 			});
 		}
@@ -138,7 +136,6 @@ export default class HarpoonPlugin extends Plugin {
 				break;
 
 			case KeyCode.D:
-				// eslint-disable-next-line no-case-declarations
 				const currentTime = new Date().getTime();
 				if (currentTime - modal.lastKeyPressTime <= 500) {
 					modal.removeFromHarpoon(modal.hookedFileIdx);
@@ -178,13 +175,16 @@ export default class HarpoonPlugin extends Plugin {
 		}
 	}
 
-	loadHarpoonCache(): void {
+	loadHarpoonCache() {
+		console.log("Loading file");
 		this.app.vault.adapter
-			.read(this.CONFIG_FILE_NAME)
+			.read(CACHE_FILE)
 			.then((content) => {
+				console.log("Loaded file");
 				this.utils.hookedFiles = JSON.parse(content);
 			})
 			.catch(() => {
+				console.log("No file found, building...");
 				this.writeHarpoonCache();
 			});
 	}
@@ -192,8 +192,8 @@ export default class HarpoonPlugin extends Plugin {
 	// Updates the cache file and the hookedFiles
 	writeHarpoonCache(hookedFiles: HookedFile[] | null = null) {
 		this.app.vault.adapter.write(
-			this.CONFIG_FILE_NAME,
-			JSON.stringify(this.utils.hookedFiles)
+			CACHE_FILE,
+			JSON.stringify(this.utils.hookedFiles, null, 2)
 		);
 
 		if (hookedFiles) {

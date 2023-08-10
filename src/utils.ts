@@ -26,7 +26,7 @@ export class HarpoonUtils {
 		return this.app.workspace.getActiveFile();
 	}
 	getEditor() {
-		return this.app.workspace.getActiveViewOfType(MarkdownView)?.editor;
+		return this.app.workspace.activeEditor?.editor;
 	}
 	getHookedFile(filepath: string) {
 		const hookedFile = this.pathToFile(filepath);
@@ -78,7 +78,6 @@ export class HarpoonUtils {
 			console.log("Active file is not found in the hooked files.");
 			return;
 		}
-
 		this.setCursorPos(file.cursor as EditorPosition);
 	}
 
