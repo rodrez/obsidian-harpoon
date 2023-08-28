@@ -81,7 +81,6 @@ export default class HarpoonModal extends Modal {
 			);
 			this.utils.getLeaf().openFile(fileToOpen);
 			this.utils.jumpToCursor();
-			// Wait until isLoaded becomes true
 			this.close();
 			return;
 		}

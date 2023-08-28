@@ -1,6 +1,5 @@
-import { App, EditorPosition, MarkdownView, TFile } from "obsidian";
-import { runInThisContext } from "vm";
-import { MAX_ATTEMPTS, DELAY_MS } from "./constants";
+import { App, EditorPosition, TFile } from "obsidian";
+import { MAX_ATTEMPTS } from "./constants";
 import { HookedFile } from "./types";
 
 export class HarpoonUtils {
@@ -70,11 +69,8 @@ export class HarpoonUtils {
 		let attempts = 0;
 
 		while (!activeFile && attempts < MAX_ATTEMPTS) {
-			activeFile = this.getActiveFile() as TFile;
+			activeFile = this.getActiveFile();
 			attempts++;
-			// if (!activeFile) {
-			// this.wait(DELAY_MS);
-			// }
 		}
 
 		if (!activeFile) {
@@ -83,7 +79,7 @@ export class HarpoonUtils {
 		}
 
 		const file = this.hookedFiles.find(
-			(f: HookedFile) => f.path === activeFile?.path,
+			(f: HookedFile) => f.path === activeFile?.path
 		);
 
 		if (!file) {
