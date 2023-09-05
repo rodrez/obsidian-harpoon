@@ -3,6 +3,10 @@
 An Obsidian plugin to manage and quickly navigate to your favorite files.
 This is a port of Harpoon (github.com/theprimeagen/harpoon) plugin for Obsidian.
 
+If you like this plugin and have some spare change feel free give this repo a star or:
+
+<a href="[https://www.buymeacoffee.com/devmask](https://www.buymeacoffee.com/devmask)" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/default-orange.png" alt="Buy Me A Coffee" height="41" width="174"></a>
+
 ![Example Usage](./sample.gif)
 
 ### Installation
