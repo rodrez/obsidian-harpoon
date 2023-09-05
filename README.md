@@ -7,8 +7,7 @@ This is a port of Harpoon (github.com/theprimeagen/harpoon) plugin for Obsidian.
 
 If you find value in this plugin, I'd greatly appreciate it if you could show your support by giving a star to this repository. Alternatively, if you're feeling generous, you can also treat me to a coffee using the link below. Your contribution means a lot and helps in further development. Thank you!
 
-<a href="[https://www.buymeacoffee.com/devmask](https://www.buymeacoffee.com/devmask)" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/default-orange.png" alt="Buy Me A Coffee" height="41" width="174"></a>
-
+<a href="https://www.buymeacoffee.com/devmask" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/default-orange.png" alt="Buy Me A Coffee" height="41" width="174"></a>
 
 ### Installation
 
