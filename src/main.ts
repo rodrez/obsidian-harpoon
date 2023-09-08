@@ -45,7 +45,7 @@ export default class HarpoonPlugin extends Plugin {
 				this.modal = new HarpoonModal(
 					this.app,
 					(hFiles: HookedFile[]) => this.writeHarpoonCache(hFiles),
-					this.utils
+					this.utils,
 				);
 				this.modal.open();
 			},
@@ -77,7 +77,7 @@ export default class HarpoonPlugin extends Plugin {
 				name: `${file.name}`,
 				callback: () => {
 					this.utils.onChooseItem(
-						this.utils.hookedFiles[file.id - 1]
+						this.utils.hookedFiles[file.id - 1],
 					);
 					// For some odd reason, possibly my lack knowledge, the
 					// editor maybe loaded when the callback is called?. So I
@@ -94,7 +94,7 @@ export default class HarpoonPlugin extends Plugin {
 		this.registerDomEvent(
 			document,
 			"keydown",
-			this.handleKeyDown.bind(this)
+			this.handleKeyDown.bind(this),
 		);
 	}
 
@@ -134,6 +134,7 @@ export default class HarpoonPlugin extends Plugin {
 		const { modal } = this;
 		switch (evt.code) {
 			case KeyCode.Enter:
+				evt.preventDefault();
 				modal.handleSelection(modal.hookedFileIdx);
 				break;
 
@@ -154,6 +155,7 @@ export default class HarpoonPlugin extends Plugin {
 				break;
 			case KeyCode.ArrowDown:
 			case KeyCode.J:
+				evt.preventDefault();
 				if (modal.hookedFileIdx === this.utils.hookedFiles.length - 1) {
 					modal.resetSelection();
 					modal.highlightHookedFile(modal.hookedFileIdx);
@@ -164,6 +166,7 @@ export default class HarpoonPlugin extends Plugin {
 				break;
 			case KeyCode.ArrowUp:
 			case KeyCode.K:
+				evt.preventDefault();
 				if (modal.hookedFileIdx === 0) {
 					modal.resetSelection();
 					modal.highlightHookedFile(modal.hookedFileIdx);
@@ -195,7 +198,7 @@ export default class HarpoonPlugin extends Plugin {
 	writeHarpoonCache(hookedFiles: HookedFile[] | null = null) {
 		this.app.vault.adapter.write(
 			CACHE_FILE,
-			JSON.stringify(this.utils.hookedFiles, null, 2)
+			JSON.stringify(this.utils.hookedFiles, null, 2),
 		);
 
 		if (hookedFiles) {
