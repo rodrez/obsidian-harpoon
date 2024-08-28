@@ -1,4 +1,11 @@
-import { Plugin, TFile, App, PluginManifest } from "obsidian";
+import {
+	Plugin,
+	TFile,
+	App,
+	PluginManifest,
+	Editor,
+	EditorPosition,
+} from "obsidian";
 import { Direction, KeyCode } from "./enums";
 import { HarpoonSettings, HookedFile } from "./types";
 import { HarpoonUtils } from "./utils";
@@ -30,6 +37,11 @@ export default class HarpoonPlugin extends Plugin {
 		this.registerCommands();
 		this.registerDomEvents();
 
+		this.registerEvent(
+			this.app.workspace.on("file-open", (file) =>
+				this.handleFileChange(file),
+			),
+		);
 		this.utils.editorIsLoaded();
 	}
 
@@ -90,6 +102,78 @@ export default class HarpoonPlugin extends Plugin {
 		}
 	}
 
+	handleFileChange(newFile: TFile | null) {
+		const activeLeaf = this.app.workspace.getLeaf();
+		if (!activeLeaf) return;
+
+		const oldFilePath = this.app.workspace.getLastOpenFiles()[1]; // Get the previously active file path
+		const oldFile = oldFilePath
+			? this.app.vault.getAbstractFileByPath(oldFilePath)
+			: null;
+		const oldEditor =
+			activeLeaf.view instanceof Editor ? activeLeaf.view : null;
+
+		if (oldFile instanceof TFile && oldEditor) {
+			const oldCursor = oldEditor.getCursor();
+			this.updateHookedFileCursor(oldFile, oldCursor);
+		}
+
+		if (newFile) {
+			this.utils.editorIsLoaded(() => {
+				const newLeaf = this.app.workspace.getLeaf();
+				if (!newLeaf) return;
+
+				const newEditor =
+					newLeaf.view instanceof Editor ? newLeaf.view : null;
+				if (newEditor) {
+					const savedCursor = this.getSavedCursor(newFile);
+					if (savedCursor) {
+						newEditor.setCursor(savedCursor);
+						this.scrollToCursor(newEditor, savedCursor);
+					}
+				}
+			});
+		}
+	}
+
+	updateHookedFileCursor(file: TFile, cursor: EditorPosition) {
+		const hookedFile = this.utils.hookedFiles.find(
+			(f) => f.path === file.path,
+		);
+		if (hookedFile) {
+			hookedFile.cursor = cursor;
+			this.writeHarpoonCache();
+		}
+	}
+
+	getSavedCursor(file: TFile): EditorPosition | null {
+		const hookedFile = this.utils.hookedFiles.find(
+			(f) => f.path === file.path,
+		);
+		return hookedFile ? hookedFile.cursor : null;
+	}
+
+	scrollToCursor(editor: Editor, cursor: EditorPosition) {
+		// Get the current scroll position
+		const currentScroll = editor.getScrollInfo();
+
+		// Get the coordinates of the cursor relative to the editor
+		const cursorCoords = editor.coordsAtPos(editor.posToOffset(cursor));
+
+		if (cursorCoords) {
+			// Check if the cursor is outside the visible area
+			if (
+				cursorCoords.top < currentScroll.top ||
+				cursorCoords.bottom > currentScroll.top + currentScroll.height
+			) {
+				// Scroll to center the cursor
+				editor.scrollTo(
+					null,
+					cursorCoords.top - currentScroll.height / 2,
+				);
+			}
+		}
+	}
 	registerDomEvents() {
 		this.registerDomEvent(
 			document,
