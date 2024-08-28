@@ -79,7 +79,7 @@ export class HarpoonUtils {
 		}
 
 		const file = this.hookedFiles.find(
-			(f: HookedFile) => f.path === activeFile?.path
+			(f: HookedFile) => f.path === activeFile?.path,
 		);
 
 		if (!file) {
