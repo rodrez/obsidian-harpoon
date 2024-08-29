@@ -5,6 +5,7 @@ import {
 	PluginManifest,
 	Editor,
 	EditorPosition,
+	MarkdownView,
 } from "obsidian";
 import { Direction, KeyCode } from "./enums";
 import { HarpoonSettings, HookedFile } from "./types";
@@ -13,6 +14,7 @@ import { CACHE_FILE } from "./constants";
 
 import HarpoonModal from "./harpoon_modal";
 
+// Default settings for the plugin
 const DEFAULT_SETTINGS: HarpoonSettings = {
 	fileOne: null,
 	fileTwo: null,
@@ -20,36 +22,54 @@ const DEFAULT_SETTINGS: HarpoonSettings = {
 	fileFour: null,
 };
 
+// Main plugin class
 export default class HarpoonPlugin extends Plugin {
 	settings: HarpoonSettings;
 	modal: HarpoonModal;
 	utils: HarpoonUtils;
 	isLoaded = false;
 
+	// Constructor initializes the plugin with the app and manifest
 	constructor(app: App, manifest: PluginManifest) {
 		super(app, manifest);
 		this.utils = new HarpoonUtils(app);
 	}
 
+	// Called when the plugin is loaded
 	onload() {
 		this.loadSettings();
 		this.loadHarpoonCache();
 		this.registerCommands();
 		this.registerDomEvents();
 
+		// Register event listener for file open
 		this.registerEvent(
 			this.app.workspace.on("file-open", (file) =>
 				this.handleFileChange(file),
 			),
 		);
+		this.registerEvent(
+			this.app.workspace.on("active-leaf-change", (leaf) => {
+				if (leaf?.view instanceof MarkdownView) {
+					const file = leaf?.view.file;
+					this.showInStatusBar("Wooo");
+					if (file) {
+						this.handleFileChange(file);
+					}
+				}
+			}),
+		);
 		this.utils.editorIsLoaded();
 	}
 
+	// Load plugin settings
 	loadSettings() {
 		this.settings = Object.assign({}, DEFAULT_SETTINGS);
 	}
 
+	// Register plugin commands
 	registerCommands() {
+		// Command to open file list
 		this.addCommand({
 			id: "open",
 			name: "Open file list",
@@ -62,6 +82,8 @@ export default class HarpoonPlugin extends Plugin {
 				this.modal.open();
 			},
 		});
+
+		// Command to add current file to list
 		this.addCommand({
 			id: "add",
 			name: "Add file to list",
@@ -76,6 +98,7 @@ export default class HarpoonPlugin extends Plugin {
 			},
 		});
 
+		// Commands to go to specific files in the list
 		const goToFiles = [
 			{ id: 1, name: "Go To File 1" },
 			{ id: 2, name: "Go To File 2" },
@@ -91,9 +114,6 @@ export default class HarpoonPlugin extends Plugin {
 					this.utils.onChooseItem(
 						this.utils.hookedFiles[file.id - 1],
 					);
-					// For some odd reason, possibly my lack knowledge, the
-					// editor maybe loaded when the callback is called?. So I
-					// have to wait a bit before jumping to the cursor.
 					setTimeout(() => {
 						this.utils.jumpToCursor();
 					}, 100);
@@ -102,6 +122,7 @@ export default class HarpoonPlugin extends Plugin {
 		}
 	}
 
+	// Handle file change event
 	handleFileChange(newFile: TFile | null) {
 		const activeLeaf = this.app.workspace.getLeaf();
 		if (!activeLeaf) return;
@@ -113,11 +134,13 @@ export default class HarpoonPlugin extends Plugin {
 		const oldEditor =
 			activeLeaf.view instanceof Editor ? activeLeaf.view : null;
 
+		// Save cursor position of the old file
 		if (oldFile instanceof TFile && oldEditor) {
 			const oldCursor = oldEditor.getCursor();
 			this.updateHookedFileCursor(oldFile, oldCursor);
 		}
 
+		// Restore cursor position for the new file
 		if (newFile) {
 			this.utils.editorIsLoaded(() => {
 				const newLeaf = this.app.workspace.getLeaf();
@@ -136,6 +159,7 @@ export default class HarpoonPlugin extends Plugin {
 		}
 	}
 
+	// Update cursor position for a hooked file
 	updateHookedFileCursor(file: TFile, cursor: EditorPosition) {
 		const hookedFile = this.utils.hookedFiles.find(
 			(f) => f.path === file.path,
@@ -146,6 +170,7 @@ export default class HarpoonPlugin extends Plugin {
 		}
 	}
 
+	// Get saved cursor position for a file
 	getSavedCursor(file: TFile): EditorPosition | null {
 		const hookedFile = this.utils.hookedFiles.find(
 			(f) => f.path === file.path,
@@ -153,11 +178,9 @@ export default class HarpoonPlugin extends Plugin {
 		return hookedFile ? hookedFile.cursor : null;
 	}
 
+	// Scroll to cursor position in editor
 	scrollToCursor(editor: Editor, cursor: EditorPosition) {
-		// Get the current scroll position
 		const currentScroll = editor.getScrollInfo();
-
-		// Get the coordinates of the cursor relative to the editor
 		const cursorCoords = editor.coordsAtPos(editor.posToOffset(cursor));
 
 		if (cursorCoords) {
@@ -174,6 +197,8 @@ export default class HarpoonPlugin extends Plugin {
 			}
 		}
 	}
+
+	// Register DOM events
 	registerDomEvents() {
 		this.registerDomEvent(
 			document,
@@ -182,6 +207,7 @@ export default class HarpoonPlugin extends Plugin {
 		);
 	}
 
+	// Handle keydown events
 	handleKeyDown(evt: KeyboardEvent) {
 		const { modal } = this;
 
@@ -196,6 +222,7 @@ export default class HarpoonPlugin extends Plugin {
 		}
 	}
 
+	// Handle Ctrl key combinations
 	handleCtrlKeyCommands(evt: KeyboardEvent) {
 		const { modal } = this;
 		switch (evt.code) {
@@ -214,6 +241,7 @@ export default class HarpoonPlugin extends Plugin {
 		}
 	}
 
+	// Handle regular key commands
 	handleRegularCommands(evt: KeyboardEvent) {
 		const { modal } = this;
 		switch (evt.code) {
@@ -264,6 +292,7 @@ export default class HarpoonPlugin extends Plugin {
 		}
 	}
 
+	// Load harpoon cache from file
 	loadHarpoonCache() {
 		console.log("Loading file");
 		this.app.vault.adapter
@@ -278,7 +307,7 @@ export default class HarpoonPlugin extends Plugin {
 			});
 	}
 
-	// Updates the cache file and the hookedFiles
+	// Write harpoon cache to file
 	writeHarpoonCache(hookedFiles: HookedFile[] | null = null) {
 		this.app.vault.adapter.write(
 			CACHE_FILE,
@@ -290,6 +319,7 @@ export default class HarpoonPlugin extends Plugin {
 		}
 	}
 
+	// Add a file to harpoon
 	async addToHarpoon(file: TFile) {
 		// If the file is already hooked, ignore it
 		if (this.utils.hookedFiles.some((f) => f.path === file.path)) {
@@ -308,7 +338,7 @@ export default class HarpoonPlugin extends Plugin {
 		}
 	}
 
-	// Visual queues
+	// Show message in status bar
 	showInStatusBar(text: string, time = 5000) {
 		const statusBarItemEl = this.addStatusBarItem();
 		statusBarItemEl.setText(text);
