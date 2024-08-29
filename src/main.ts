@@ -152,7 +152,10 @@ export default class HarpoonPlugin extends Plugin {
 					const savedCursor = this.getSavedCursor(newFile);
 					if (savedCursor) {
 						newEditor.setCursor(savedCursor);
-						this.scrollToCursor(newEditor, savedCursor);
+						this.app.workspace.activeEditor?.editor?.scrollTo(
+							savedCursor.ch,
+							savedCursor.line,
+						);
 					}
 				}
 			});
@@ -171,31 +174,11 @@ export default class HarpoonPlugin extends Plugin {
 	}
 
 	// Get saved cursor position for a file
-	getSavedCursor(file: TFile): EditorPosition | null {
+	getSavedCursor(file: TFile): EditorPosition | null | undefined {
 		const hookedFile = this.utils.hookedFiles.find(
 			(f) => f.path === file.path,
 		);
 		return hookedFile ? hookedFile.cursor : null;
-	}
-
-	// Scroll to cursor position in editor
-	scrollToCursor(editor: Editor, cursor: EditorPosition) {
-		const currentScroll = editor.getScrollInfo();
-		const cursorCoords = editor.coordsAtPos(editor.posToOffset(cursor));
-
-		if (cursorCoords) {
-			// Check if the cursor is outside the visible area
-			if (
-				cursorCoords.top < currentScroll.top ||
-				cursorCoords.bottom > currentScroll.top + currentScroll.height
-			) {
-				// Scroll to center the cursor
-				editor.scrollTo(
-					null,
-					cursorCoords.top - currentScroll.height / 2,
-				);
-			}
-		}
 	}
 
 	// Register DOM events
