@@ -50,11 +50,35 @@ export default class HarpoonModal extends Modal {
 
 		this.hookedFiles.forEach((hookedFile, idx) => {
 			const hookedEl = this.contentEl.createEl("div", {
-				text: `${idx + 1}. ${hookedFile.path}`,
 				cls: "hooked-file tree-item-self is-clickable nav-file-title",
 			});
+			
+			// Create container for file path
+			const pathEl = hookedEl.createEl("span", {
+				text: `${idx + 1}. ${hookedFile.path}`,
+				cls: "hooked-file-path"
+			});
+
+			// Create delete button
+			const deleteBtn = hookedEl.createEl("span", {
+				text: "×",
+				cls: "hooked-file-delete"
+			});
+
+			deleteBtn.addEventListener("click", (e) => {
+				e.stopPropagation();
+				this.removeFromHarpoon(idx);
+			});
+
 			hookedEl.dataset.id = `hooked-file-${idx}`;
 			hookedEl.id = `hooked-file-${idx}`;
+		});
+
+		this.modalEl.addEventListener("keydown", (e) => {
+			if (e.key === "Delete" || e.key === "Backspace") {
+				e.preventDefault();
+				this.removeFromHarpoon(this.hookedFileIdx);
+			}
 		});
 
 		this.hookedFileIdx = 0;
@@ -119,3 +143,4 @@ export default class HarpoonModal extends Modal {
 			this.hookedFileIdx === 0 ? this.hookedFiles.length - 1 : 0;
 	}
 }
+
