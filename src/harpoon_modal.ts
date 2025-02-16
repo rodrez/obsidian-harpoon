@@ -52,7 +52,12 @@ export default class HarpoonModal extends Modal {
 			const hookedEl = this.contentEl.createEl("div", {
 				cls: "hooked-file tree-item-self is-clickable nav-file-title",
 			});
-			
+
+			// Create container for file path
+			const pathEl = hookedEl.createEl("span", {
+				text: `${idx + 1}. ${hookedFile.path}`,
+				cls: "hooked-file-path"
+			});
 
 			// Create delete button
 			const deleteBtn = hookedEl.createEl("span", {
