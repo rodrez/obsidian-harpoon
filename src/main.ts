@@ -3,6 +3,7 @@ import { Direction, KeyCode } from "./enums";
 import { HarpoonSettings, HookedFile } from "./types";
 import { HarpoonUtils } from "./utils";
 import { CACHE_FILE } from "./constants";
+import { HarpoonSettingTab } from "./settings";
 
 import HarpoonModal from "./harpoon_modal";
 
@@ -11,6 +12,7 @@ const DEFAULT_SETTINGS: HarpoonSettings = {
 	fileTwo: null,
 	fileThree: null,
 	fileFour: null,
+	selectFileHotkey: "Enter",
 };
 
 export default class HarpoonPlugin extends Plugin {
@@ -24,17 +26,22 @@ export default class HarpoonPlugin extends Plugin {
 		this.utils = new HarpoonUtils(app);
 	}
 
-	onload() {
-		this.loadSettings();
+	async onload() {
+		await this.loadSettings();
 		this.loadHarpoonCache();
 		this.registerCommands();
 		this.registerDomEvents();
+		this.addSettingTab(new HarpoonSettingTab(this.app, this));
 
 		this.utils.editorIsLoaded();
 	}
 
-	loadSettings() {
-		this.settings = Object.assign({}, DEFAULT_SETTINGS);
+	async loadSettings() {
+		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+	}
+
+	async saveSettings() {
+		await this.saveData(this.settings);
 	}
 
 	registerCommands() {
@@ -46,6 +53,7 @@ export default class HarpoonPlugin extends Plugin {
 					this.app,
 					(hFiles: HookedFile[]) => this.writeHarpoonCache(hFiles),
 					this.utils,
+					this
 				);
 				this.modal.open();
 			},
@@ -94,90 +102,19 @@ export default class HarpoonPlugin extends Plugin {
 		this.registerDomEvent(
 			document,
 			"keydown",
-			this.handleKeyDown.bind(this),
+			(evt: KeyboardEvent) => {
+				const { modal } = this;
+				if (!modal || !this.utils.isOpen) return;
+				
+				if (evt.ctrlKey && evt.shiftKey && evt.code === KeyCode.D) {
+					modal.close();
+				} else if (evt.ctrlKey) {
+					modal.handleCtrlKeyCommands(evt);
+				} else {
+					modal.handleRegularCommands(evt);
+				}
+			}
 		);
-	}
-
-	handleKeyDown(evt: KeyboardEvent) {
-		const { modal } = this;
-
-		if (!modal || !this.utils.isOpen) return;
-
-		if (evt.ctrlKey && evt.shiftKey && evt.code === KeyCode.D) {
-			modal.close();
-		} else if (evt.ctrlKey) {
-			this.handleCtrlKeyCommands(evt);
-		} else {
-			this.handleRegularCommands(evt);
-		}
-	}
-
-	handleCtrlKeyCommands(evt: KeyboardEvent) {
-		const { modal } = this;
-		switch (evt.code) {
-			case KeyCode.H:
-				modal.handleSelection(0);
-				break;
-			case KeyCode.T:
-				modal.handleSelection(1);
-				break;
-			case KeyCode.N:
-				modal.handleSelection(2);
-				break;
-			case KeyCode.S:
-				modal.handleSelection(3);
-				break;
-		}
-	}
-
-	handleRegularCommands(evt: KeyboardEvent) {
-		const { modal } = this;
-		switch (evt.code) {
-			case KeyCode.Enter:
-				evt.preventDefault();
-				modal.handleSelection(modal.hookedFileIdx);
-				break;
-
-			case KeyCode.D:
-				const currentTime = new Date().getTime();
-				if (currentTime - modal.lastKeyPressTime <= 500) {
-					modal.removeFromHarpoon(modal.hookedFileIdx);
-					break;
-				}
-				modal.lastKeyPressTime = currentTime;
-				break;
-			case KeyCode.P:
-				if (evt.shiftKey) {
-					modal.insertFileAt(modal.hookedFileIdx);
-				} else {
-					modal.insertFileAt(modal.hookedFileIdx + 1);
-				}
-				break;
-			case KeyCode.ArrowDown:
-			case KeyCode.J:
-				evt.preventDefault();
-				if (modal.hookedFileIdx === this.utils.hookedFiles.length - 1) {
-					modal.resetSelection();
-					modal.highlightHookedFile(modal.hookedFileIdx);
-				} else {
-					modal.moveSelection(Direction.Down);
-					modal.highlightHookedFile(modal.hookedFileIdx);
-				}
-				break;
-			case KeyCode.ArrowUp:
-			case KeyCode.K:
-				evt.preventDefault();
-				if (modal.hookedFileIdx === 0) {
-					modal.resetSelection();
-					modal.highlightHookedFile(modal.hookedFileIdx);
-				} else {
-					modal.moveSelection(Direction.Up);
-					modal.highlightHookedFile(modal.hookedFileIdx);
-				}
-				break;
-			default:
-				break;
-		}
 	}
 
 	loadHarpoonCache() {

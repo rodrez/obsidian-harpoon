@@ -5,6 +5,7 @@ export type HarpoonSettings = {
 	fileTwo: TFile | null;
 	fileThree: TFile | null;
 	fileFour: TFile | null;
+	selectFileHotkey: string;
 };
 
 export type HookedFile = {

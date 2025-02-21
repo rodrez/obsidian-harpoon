@@ -1,6 +1,8 @@
 import { App, Modal } from "obsidian";
 import { HookedFile } from "./types";
 import { HarpoonUtils } from "./utils";
+import HarpoonPlugin from "./main";
+import { Direction, KeyCode } from "./enums";
 
 export default class HarpoonModal extends Modal {
 	hookedFiles: HookedFile[];
@@ -9,16 +11,19 @@ export default class HarpoonModal extends Modal {
 	lastRemoved: HookedFile | null;
 	lastKeyPressTime = 0;
 	utils: HarpoonUtils;
+	plugin: HarpoonPlugin;
 
 	constructor(
 		app: App,
 		writeToCache: (hFiles: HookedFile[]) => void,
-		utils: HarpoonUtils
+		utils: HarpoonUtils,
+		plugin: HarpoonPlugin
 	) {
 		super(app);
 		this.hookedFiles = utils.hookedFiles;
 		this.writeToCache = writeToCache;
 		this.utils = utils;
+		this.plugin = plugin;
 	}
 
 	// Lifecycle methods
@@ -26,6 +31,9 @@ export default class HarpoonModal extends Modal {
 		this.utils.isOpen = true;
 		this.setupUI();
 		this.renderHookedFiles();
+		
+		// Add keydown event listener when modal opens
+		this.modalEl.addEventListener("keydown", this.handleKeyDown.bind(this));
 	}
 
 	onClose() {
@@ -54,7 +62,7 @@ export default class HarpoonModal extends Modal {
 			});
 
 			// Create container for file path
-			const pathEl = hookedEl.createEl("span", {
+			hookedEl.createEl("span", {
 				text: `${idx + 1}. ${hookedFile.path}`,
 				cls: "hooked-file-path"
 			});
@@ -141,6 +149,85 @@ export default class HarpoonModal extends Modal {
 	resetSelection() {
 		this.hookedFileIdx =
 			this.hookedFileIdx === 0 ? this.hookedFiles.length - 1 : 0;
+	}
+
+	handleKeyDown(evt: KeyboardEvent) {
+		if (evt.ctrlKey && evt.shiftKey && evt.code === KeyCode.D) {
+			this.close();
+		} else if (evt.ctrlKey) {
+			this.handleCtrlKeyCommands(evt);
+		} else {
+			this.handleRegularCommands(evt);
+		}
+	}
+
+	handleCtrlKeyCommands(evt: KeyboardEvent) {
+		switch (evt.code) {
+			case KeyCode.H:
+				this.handleSelection(0);
+				break;
+			case KeyCode.T:
+				this.handleSelection(1);
+				break;
+			case KeyCode.N:
+				this.handleSelection(2);
+				break;
+			case KeyCode.S:
+				this.handleSelection(3);
+				break;
+		}
+	}
+
+	handleRegularCommands(evt: KeyboardEvent) {
+		if (evt.key === this.plugin.settings.selectFileHotkey) {
+			evt.preventDefault();
+			this.handleSelection(this.hookedFileIdx);
+			return;
+		}
+
+		let currentTime: number;
+
+		switch (evt.code) {
+			case KeyCode.D:
+				currentTime = new Date().getTime();
+				if (currentTime - this.lastKeyPressTime <= 500) {
+					this.removeFromHarpoon(this.hookedFileIdx);
+					break;
+				}
+				this.lastKeyPressTime = currentTime;
+				break;
+			case KeyCode.P:
+				if (evt.shiftKey) {
+					this.insertFileAt(this.hookedFileIdx);
+				} else {
+					this.insertFileAt(this.hookedFileIdx + 1);
+				}
+				break;
+			case KeyCode.ArrowDown:
+			case KeyCode.J:
+				evt.preventDefault();
+				if (this.hookedFileIdx === this.hookedFiles.length - 1) {
+					this.resetSelection();
+					this.highlightHookedFile(this.hookedFileIdx);
+				} else {
+					this.moveSelection(Direction.Down);
+					this.highlightHookedFile(this.hookedFileIdx);
+				}
+				break;
+			case KeyCode.ArrowUp:
+			case KeyCode.K:
+				evt.preventDefault();
+				if (this.hookedFileIdx === 0) {
+					this.resetSelection();
+					this.highlightHookedFile(this.hookedFileIdx);
+				} else {
+					this.moveSelection(Direction.Up);
+					this.highlightHookedFile(this.hookedFileIdx);
+				}
+				break;
+			default:
+				break;
+		}
 	}
 }
 

@@ -47,6 +47,11 @@ While the Harpoon modal is open:
 **ArrowDown or J**: Navigate downwards in the list.
 **ArrowUp or K**: Navigate upwards in the list.
 
+Note: You can change the keybindings in the plugin settings for selectFileHotkey.
+Instead of Enter, you can use any keybinding you want.
+
+![Settings](./settings.png)
+
 ### Tips
 
 * Make sure not to manually delete the harpoon-config.json unless you're sure about it. It holds the configuration and list of hooked files for the plugin.
